@@ -1,10 +1,17 @@
+import os
 import hashlib
 import uuid
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Database setup
-engine = create_engine('sqlite:///users.db', echo=False)
+DB_PATH = os.getenv('DB_PATH', 'sqlite:///users.db')
+engine = create_engine('DB_PATH', echo=False)
+
 Base = declarative_base()
 Session = sessionmaker(bind=engine)
 session = Session()
