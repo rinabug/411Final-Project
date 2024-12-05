@@ -1,119 +1,170 @@
-import os
-import hashlib
-import uuid
-from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.orm import declarative_base, sessionmaker
 from dotenv import load_dotenv
+from flask import Flask, jsonify, make_response, Response, request
 
-# Load environment variables
+# Load environment variables from .env file
 load_dotenv()
 
-# Database setup
-DB_PATH = os.getenv('DB_PATH', 'sqlite:///users.db')
-engine = create_engine('DB_PATH', echo=False)
+app = Flask(__name__)
 
-Base = declarative_base()
-Session = sessionmaker(bind=engine)
-session = Session()
+# Movie Model
+class MovieModel:
+    def __init__(self):
+        # This would be where you connect to a database or an external movie API
+        self.movies = []
 
-# User model
-class User(Base):
-    __tablename__ = 'users_cli'
-    id = Column(Integer, primary_key=True)
-    username = Column(String(80), unique=True, nullable=False)
-    salt = Column(String(64), nullable=False)
-    password_hash = Column(String(128), nullable=False)
+    def create_movie(self, title, genre, rating, year):
+        new_movie = {"title": title, "genre": genre, "rating": rating, "year": year}
+        self.movies.append(new_movie)
 
-# Create tables
-Base.metadata.create_all(engine)
+    def get_movie_by_id(self, movie_id):
+        try:
+            return self.movies[movie_id]
+        except IndexError:
+            raise Exception("Movie not found")
 
-def hash_password(password, salt):
-    """Hash a password with the given salt."""
-    pwdhash = hashlib.pbkdf2_hmac(
-        'sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000
-    )
-    return pwdhash.hex()
+    def get_all_movies(self):
+        return self.movies
 
-def create_account():
-    username = input("Enter new username: ")
-    password = input("Enter new password: ")
+    def delete_movie(self, movie_id):
+        try:
+            self.movies.pop(movie_id)
+        except IndexError:
+            raise Exception("Movie not found")
 
-    # Check if username already exists
-    if session.query(User).filter_by(username=username).first():
-        print("Username already exists.")
-        return
+movie_model = MovieModel()
 
-    salt = uuid.uuid4().hex
-    password_hash = hash_password(password, salt)
+####################################################
+#
+# Healthcheck
+#
+####################################################
 
-    new_user = User(username=username, salt=salt, password_hash=password_hash)
-    session.add(new_user)
-    session.commit()
-
-    print("Account created successfully.")
-
-def login():
-    username = input("Enter username: ")
-    user = session.query(User).filter_by(username=username).first()
-    if not user:
-        print("Invalid username.")
-        return
-    password = input("Enter password: ")
+@app.route('/api/health', methods=['GET'])
+def healthcheck() -> Response:
+    """
+    Health check route to verify the service is running.
+    """
+    return make_response(jsonify({'status': 'healthy'}), 200)
 
 
-    password_hash = hash_password(password, user.salt)
-    if password_hash != user.password_hash:
-        print("Invalid username or password.")
-        return
+##########################################################
+#
+# Movies
+#
+##########################################################
 
-    print("Login successful.")
+@app.route('/api/create-movie', methods=['POST'])
+def add_movie() -> Response:
+    """
+    Route to add a new movie to the database.
 
-def update_password():
-    username = input("Enter username: ")
-    user = session.query(User).filter_by(username=username).first()
-    if not user:
-        print("Invalid username.")
-        return
+    Expected JSON Input:
+        - title (str): The title of the movie.
+        - genre (str): The genre of the movie.
+        - rating (float): The rating of the movie (0-10).
+        - year (int): The year the movie was released.
+
+    Returns:
+        JSON response indicating the success of the movie addition.
+    """
+    try:
+        data = request.get_json()
+        title = data.get('title')
+        genre = data.get('genre')
+        rating = data.get('rating')
+        year = data.get('year')
+
+        if not title or not genre or rating is None or year is None:
+            return make_response(jsonify({'error': 'Invalid input, all fields are required'}), 400)
+
+        movie_model.create_movie(title, genre, rating, year)
+
+        return make_response(jsonify({'status': 'success', 'movie': title}), 201)
+    except Exception as e:
+        return make_response(jsonify({'error': str(e)}), 500)
+
+
+@app.route('/api/delete-movie/<int:movie_id>', methods=['DELETE'])
+def delete_movie(movie_id: int) -> Response:
+    """
+    Route to delete a movie by its ID.
+
+    Path Parameter:
+        - movie_id (int): The ID of the movie to delete.
+
+    Returns:
+        JSON response indicating success or error message.
+    """
+    try:
+        movie_model.delete_movie(movie_id)
+        return make_response(jsonify({'status': 'success'}), 200)
+    except Exception as e:
+        return make_response(jsonify({'error': str(e)}), 500)
+
+
+@app.route('/api/get-movie-by-id/<int:movie_id>', methods=['GET'])
+def get_movie_by_id(movie_id: int) -> Response:
+    """
+    Route to get a movie by its ID.
+
+    Path Parameter:
+        - movie_id (int): The ID of the movie.
+
+    Returns:
+        JSON response with the movie details or error message.
+    """
+    try:
+        movie = movie_model.get_movie_by_id(movie_id)
+        return make_response(jsonify({'status': 'success', 'movie': movie}), 200)
+    except Exception as e:
+        return make_response(jsonify({'error': str(e)}), 500)
+
+
+@app.route('/api/get-all-movies', methods=['GET'])
+def get_all_movies() -> Response:
+    """
+    Route to get all movies.
+
+    Returns:
+        JSON response with a list of all movies.
+    """
+    try:
+        movies = movie_model.get_all_movies()
+        return make_response(jsonify({'status': 'success', 'movies': movies}), 200)
+    except Exception as e:
+        return make_response(jsonify({'error': str(e)}), 500)
+
+
+############################################################
+#
+# Movie Recommendations
+#
+############################################################
+
+@app.route('/api/recommend-movies', methods=['GET'])
+def recommend_movies() -> Response:
+    """
+    Route to recommend movies based on genre or rating.
     
-    old_password = input("Enter current password: ")
-    old_password_hash = hash_password(old_password, user.salt)
-    if old_password_hash != user.password_hash:
-        print("Invalid current password.")
-        return
+    Query Parameters:
+        - genre (str): The genre of movies to recommend.
+        - rating (float): The minimum rating of movies to recommend.
+    
+    Returns:
+        JSON response with a list of recommended movies.
+    """
+    try:
+        genre = request.args.get('genre')
+        rating = request.args.get('rating', type=float)
 
-    new_password = input("Enter new password: ")
+        recommended_movies = [movie for movie in movie_model.get_all_movies() 
+                              if (genre is None or movie['genre'].lower() == genre.lower()) and
+                                 (rating is None or movie['rating'] >= rating)]
 
+        return make_response(jsonify({'status': 'success', 'recommended_movies': recommended_movies}), 200)
+    except Exception as e:
+        return make_response(jsonify({'error': str(e)}), 500)
 
-
-    new_salt = uuid.uuid4().hex
-    new_password_hash = hash_password(new_password, new_salt)
-
-    user.salt = new_salt
-    user.password_hash = new_password_hash
-    session.commit()
-
-    print("Password updated successfully.")
-
-def main():
-    while True:
-        print("\nPlease choose an option:")
-        print("1. Create Account")
-        print("2. Login")
-        print("3. Update Password")
-        print("4. Exit")
-        choice = input("Enter choice (1-4): ")
-
-        if choice == '1':
-            create_account()
-        elif choice == '2':
-            login()
-        elif choice == '3':
-            update_password()
-        elif choice == '4':
-            print("Goodbye!")
-            break
-        else:
-            print("Invalid choice. Please try again.")
 
 if __name__ == '__main__':
-    main()
+    app.run(debug=True, host='0.0.0.0', port=5000)
