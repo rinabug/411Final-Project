@@ -19,6 +19,8 @@ pip install -r requirements.txt
 DATABASE_URL=sqlite:///movies.db
 TMDB_API_KEY=your_tmdb_api_key_here
 ```
+    To get TMDB API Key, register at: [TMDB](https://developer.themoviedb.org/docs/getting-started) 
+    
 3. SQL Database Setup: initialize it by running
 ```
 bash sql/init_db.sh
