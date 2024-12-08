@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>User Management</h1>
+
+        <!-- Account Creation Form -->
+        <div>
+            <h2>Create Account</h2>
+            <form id="create-account-form">
+                <label for="create-username">Username:</label>
+                <input type="text" id="create-username" name="username" required>
+                <label for="create-password">Password:</label>
+                <input type="password" id="create-password" name="password" required>
+                <button type="submit">Create Account</button>
+            </form>
+            <div id="create-account-feedback"></div>
+        </div>
+
+        <!-- Login Form -->
+        <div>
+            <h2>Login</h2>
+            <form id="login-form">
+                <label for="login-username">Username:</label>
+                <input type="text" id="login-username" name="username" required>
+                <label for="login-password">Password:</label>
+                <input type="password" id="login-password" name="password" required>
+                <button type="submit">Login</button>
+            </form>
+            <div id="login-feedback"></div>
+        </div>
+
+        <!-- Update Password Form -->
+        <div>
+            <h2>Update Password</h2>
+            <form id="update-password-form">
+                <label for="update-username">Username:</label>
+                <input type="text" id="update-username" name="username" required>
+                <label for="update-old-password">Old Password:</label>
+                <input type="password" id="update-old-password" name="old_password" required>
+                <label for="update-new-password">New Password:</label>
+                <input type="password" id="update-new-password" name="new_password" required>
+                <button type="submit">Update Password</button>
+            </form>
+            <div id="update-password-feedback"></div>
+        </div>
+    </div>
+    <script src="/static/user.js"></script>
+</body>
+</html>

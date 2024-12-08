@@ -1,170 +1,149 @@
-from dotenv import load_dotenv
-from flask import Flask, jsonify, make_response, Response, request
-
-# Load environment variables from .env file
-load_dotenv()
+from flask import Flask, jsonify, request, make_response, render_template, redirect
+from models import db, User
+from routes.account_routes import account_routes
+from tmdb_api import TMDBClient
+import logging
+import os
 
 app = Flask(__name__)
 
-# Movie Model
-class MovieModel:
-    def __init__(self):
-        # This would be where you connect to a database or an external movie API
-        self.movies = []
+# Load configurations
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///movies.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    def create_movie(self, title, genre, rating, year):
-        new_movie = {"title": title, "genre": genre, "rating": rating, "year": year}
-        self.movies.append(new_movie)
+db.init_app(app)
 
-    def get_movie_by_id(self, movie_id):
-        try:
-            return self.movies[movie_id]
-        except IndexError:
-            raise Exception("Movie not found")
+app.register_blueprint(account_routes)
 
-    def get_all_movies(self):
-        return self.movies
+# TMDB Client
+tmdb_client = TMDBClient()
 
-    def delete_movie(self, movie_id):
-        try:
-            self.movies.pop(movie_id)
-        except IndexError:
-            raise Exception("Movie not found")
+# Logging
+logging.basicConfig(level=logging.INFO)
 
-movie_model = MovieModel()
-
-####################################################
-#
-# Healthcheck
-#
-####################################################
-
+# Healthcheck Route
 @app.route('/api/health', methods=['GET'])
-def healthcheck() -> Response:
-    """
-    Health check route to verify the service is running.
-    """
-    return make_response(jsonify({'status': 'healthy'}), 200)
+def healthcheck():
+    """Healthcheck route to verify the app is running."""
+    return jsonify({'status': 'healthy'}), 200
 
+# Account Management Routes
+@app.route('/api/create-account', methods=['POST'])
+def create_account():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
 
-##########################################################
-#
-# Movies
-#
-##########################################################
+    if not username or not password:
+        return make_response(jsonify({'error': 'Username and password are required'}), 400)
 
-@app.route('/api/create-movie', methods=['POST'])
-def add_movie() -> Response:
-    """
-    Route to add a new movie to the database.
-
-    Expected JSON Input:
-        - title (str): The title of the movie.
-        - genre (str): The genre of the movie.
-        - rating (float): The rating of the movie (0-10).
-        - year (int): The year the movie was released.
-
-    Returns:
-        JSON response indicating the success of the movie addition.
-    """
     try:
-        data = request.get_json()
-        title = data.get('title')
-        genre = data.get('genre')
-        rating = data.get('rating')
-        year = data.get('year')
-
-        if not title or not genre or rating is None or year is None:
-            return make_response(jsonify({'error': 'Invalid input, all fields are required'}), 400)
-
-        movie_model.create_movie(title, genre, rating, year)
-
-        return make_response(jsonify({'status': 'success', 'movie': title}), 201)
+        User.create_user(username, password)
+        return jsonify({'message': 'Account created successfully'}), 201
     except Exception as e:
-        return make_response(jsonify({'error': str(e)}), 500)
+        return jsonify({'error': str(e)}), 400
 
 
-@app.route('/api/delete-movie/<int:movie_id>', methods=['DELETE'])
-def delete_movie(movie_id: int) -> Response:
-    """
-    Route to delete a movie by its ID.
+@app.route('/api/login', methods=['POST'])
+def login():
+    """Login and verify username/password."""
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
 
-    Path Parameter:
-        - movie_id (int): The ID of the movie to delete.
+    if User.verify_user(username, password):
+        return jsonify({'message': 'Login successful'}), 200
+    if not password:
+        return jsonify({'error': 'Invalid credentials'}), 400 
+    
+    return jsonify({'error': 'Invalid credentials'}), 401
 
-    Returns:
-        JSON response indicating success or error message.
-    """
-    try:
-        movie_model.delete_movie(movie_id)
-        return make_response(jsonify({'status': 'success'}), 200)
-    except Exception as e:
-        return make_response(jsonify({'error': str(e)}), 500)
+@app.route('/user')
+def user_management():
+    """Render the user management page."""
+    return render_template('user.html')
 
-
-@app.route('/api/get-movie-by-id/<int:movie_id>', methods=['GET'])
-def get_movie_by_id(movie_id: int) -> Response:
-    """
-    Route to get a movie by its ID.
-
-    Path Parameter:
-        - movie_id (int): The ID of the movie.
-
-    Returns:
-        JSON response with the movie details or error message.
-    """
-    try:
-        movie = movie_model.get_movie_by_id(movie_id)
-        return make_response(jsonify({'status': 'success', 'movie': movie}), 200)
-    except Exception as e:
-        return make_response(jsonify({'error': str(e)}), 500)
-
-
-@app.route('/api/get-all-movies', methods=['GET'])
-def get_all_movies() -> Response:
-    """
-    Route to get all movies.
-
-    Returns:
-        JSON response with a list of all movies.
-    """
-    try:
-        movies = movie_model.get_all_movies()
-        return make_response(jsonify({'status': 'success', 'movies': movies}), 200)
-    except Exception as e:
-        return make_response(jsonify({'error': str(e)}), 500)
-
-
-############################################################
-#
-# Movie Recommendations
-#
-############################################################
-
+# Movie Recommendation Routes
 @app.route('/api/recommend-movies', methods=['GET'])
-def recommend_movies() -> Response:
+def recommend_movies():
     """
-    Route to recommend movies based on genre or rating.
-    
-    Query Parameters:
-        - genre (str): The genre of movies to recommend.
-        - rating (float): The minimum rating of movies to recommend.
-    
-    Returns:
-        JSON response with a list of recommended movies.
+    Recommend movies based on genre, rating, and recency.
     """
-    try:
-        genre = request.args.get('genre')
-        rating = request.args.get('rating', type=float)
+    genre = request.args.get('genre', '')
+    rating = request.args.get('rating', '')
+    recency = request.args.get('recency', '')
 
-        recommended_movies = [movie for movie in movie_model.get_all_movies() 
-                              if (genre is None or movie['genre'].lower() == genre.lower()) and
-                                 (rating is None or movie['rating'] >= rating)]
+    # Check for missing parameters
+    if not genre or not rating or not recency:
+        return jsonify({'error': 'Missing required parameters'}), 400
+    
+    # Define a mapping for recency ranges
+    year_ranges = {
+        "2000-2010": (2000, 2010),
+        "2011-2015": (2011, 2015),
+        "2016-2020": (2016, 2020),
+        "2021-present": (2021, 2024)
+    }
 
-        return make_response(jsonify({'status': 'success', 'recommended_movies': recommended_movies}), 200)
-    except Exception as e:
-        return make_response(jsonify({'error': str(e)}), 500)
+    # Extract the start and end years from the recency range
+    start_year, end_year = year_ranges.get(recency, (2000, 2024))
 
+    # Fetch recommendations from the TMDB API client
+    movies = tmdb_client.get_movies_by_genre_rating_and_years(genre, rating, start_year, end_year)
+    return jsonify({'recommended_movies': movies}), 200
+
+
+@app.route('/api/movie-details/<int:movie_id>', methods=['GET'])
+def movie_details(movie_id):
+    """Get detailed information about a movie."""
+    movie = tmdb_client.get_movie_details(movie_id)
+    return jsonify(movie), 200
+
+@app.route('/api/search-movies', methods=['GET'])
+def search_movies():
+    """Search for movies by title, including poster URLs."""
+    query = request.args.get('query', '')
+    if not query:
+        return jsonify({'error': 'Query parameter is required'}), 400
+
+    results = tmdb_client.search_movies_by_title(query)
+    movies = [
+        {
+            "title": movie.get("title", "Unknown Title"),
+            "release_date": movie.get("release_date", "Unknown"),
+            "vote_average": movie.get("vote_average", "N/A"),
+            "poster": f"https://image.tmdb.org/t/p/w500{movie['poster_path']}" if movie.get("poster_path") else None,
+        }
+        for movie in results
+    ]
+    return jsonify({'search_results': movies}), 200
+
+
+@app.route('/api/top-rated-movies', methods=['GET'])
+def top_rated_movies():
+    """Fetch top-rated movies with poster URLs."""
+    movies = tmdb_client.get_top_rated_movies()
+    return jsonify({'top_rated_movies': movies}), 200
+
+@app.route('/api/now-playing', methods=['GET'])
+def now_playing():
+    """Fetch now-playing movies with poster URLs."""
+    movies = tmdb_client.get_now_playing()
+    return jsonify({'now_playing_movies': movies}), 200
+
+@app.route('/')
+def index():
+    """
+    Redirect the root URL to the main frontend at /callback.
+    """
+    return redirect('/callback')
+
+@app.route('/callback', methods=['GET'])
+def callback():
+    return render_template('index.html')
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    with app.app_context():
+        db.create_all()  # Initialize database
+        print("Database initialized.")
+    app.run(host='localhost', port=8080, debug=True)
