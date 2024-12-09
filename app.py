@@ -1,3 +1,4 @@
+from flask import Flask, request, jsonify
 import hashlib
 import uuid
 from sqlalchemy import create_engine, Column, Integer, String
@@ -17,7 +18,7 @@ class User(Base):
     salt = Column(String(64), nullable=False)
     password_hash = Column(String(128), nullable=False)
 
-# Create tables
+# Create tables if they don't exist
 Base.metadata.create_all(engine)
 
 def hash_password(password, salt):
@@ -27,14 +28,20 @@ def hash_password(password, salt):
     )
     return pwdhash.hex()
 
+app = Flask(__name__)
+
+@app.route('/create_account', methods=['POST'])
 def create_account():
-    username = input("Enter new username: ")
-    password = input("Enter new password: ")
+    data = request.get_json(force=True)
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({"error": "Username and password are required."}), 400
 
     # Check if username already exists
     if session.query(User).filter_by(username=username).first():
-        print("Username already exists.")
-        return
+        return jsonify({"error": "Username already exists."}), 409
 
     salt = uuid.uuid4().hex
     password_hash = hash_password(password, salt)
@@ -43,40 +50,45 @@ def create_account():
     session.add(new_user)
     session.commit()
 
-    print("Account created successfully.")
+    return jsonify({"message": "Account created successfully."}), 201
 
+@app.route('/login', methods=['POST'])
 def login():
-    username = input("Enter username: ")
+    data = request.get_json(force=True)
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({"error": "Username and password are required."}), 400
+
     user = session.query(User).filter_by(username=username).first()
     if not user:
-        print("Invalid username.")
-        return
-    password = input("Enter password: ")
-
+        return jsonify({"error": "Invalid username or password."}), 401
 
     password_hash = hash_password(password, user.salt)
     if password_hash != user.password_hash:
-        print("Invalid username or password.")
-        return
+        return jsonify({"error": "Invalid username or password."}), 401
 
-    print("Login successful.")
+    # In a more robust system, you might return a JWT or session token here
+    return jsonify({"message": "Login successful."}), 200
 
+@app.route('/update_password', methods=['POST'])
 def update_password():
-    username = input("Enter username: ")
+    data = request.get_json(force=True)
+    username = data.get('username')
+    old_password = data.get('old_password')
+    new_password = data.get('new_password')
+
+    if not username or not old_password or not new_password:
+        return jsonify({"error": "Username, old_password, and new_password are required."}), 400
+
     user = session.query(User).filter_by(username=username).first()
     if not user:
-        print("Invalid username.")
-        return
-    
-    old_password = input("Enter current password: ")
+        return jsonify({"error": "Invalid username."}), 404
+
     old_password_hash = hash_password(old_password, user.salt)
     if old_password_hash != user.password_hash:
-        print("Invalid current password.")
-        return
-
-    new_password = input("Enter new password: ")
-
-
+        return jsonify({"error": "Invalid current password."}), 401
 
     new_salt = uuid.uuid4().hex
     new_password_hash = hash_password(new_password, new_salt)
@@ -85,28 +97,7 @@ def update_password():
     user.password_hash = new_password_hash
     session.commit()
 
-    print("Password updated successfully.")
-
-def main():
-    while True:
-        print("\nPlease choose an option:")
-        print("1. Create Account")
-        print("2. Login")
-        print("3. Update Password")
-        print("4. Exit")
-        choice = input("Enter choice (1-4): ")
-
-        if choice == '1':
-            create_account()
-        elif choice == '2':
-            login()
-        elif choice == '3':
-            update_password()
-        elif choice == '4':
-            print("Goodbye!")
-            break
-        else:
-            print("Invalid choice. Please try again.")
+    return jsonify({"message": "Password updated successfully."}), 200
 
 if __name__ == '__main__':
-    main()
+    app.run(debug=True)
