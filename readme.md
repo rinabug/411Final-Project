@@ -30,6 +30,7 @@ bash sql/init_db.sh
 python app.py
 ```
 The app will be available at: http://localhost:8080
+
 5. Docker Deployment: to run app using docker
 ```
 docker build -t movie_app .
@@ -37,32 +38,32 @@ docker run -p 8080:5000 movie_app
 ```
 
 ## Routes
-1. Health Check
-### `/api/health`
+### 1. Health Check
+#### `/api/health`
 - **Method**: GET
 - **Purpose**: Verify app is running.
 - **Response**: `{"status": "healthy"}`
 
-2. Create Account
-### `/api/create-account`
+### 2. Create Account
+#### `/api/create-account`
 - **Method**: POST
 - **Request**: `{"username": "your_username", "password": "your_password"}`
 - **Response**: `{"message": "Account created successfully"}`
 
-3. Login
-### `/api/login`
+### 3. Login
+#### `/api/login`
 - **Method**: POST
 - **Request**: `{"username": "your_username", "password": "your_password"}`
 - **Response**: `{"message": "Login successful"}`
 
-4. Update Password
-### `/api/update-password`
+### 4. Update Password
+#### `/api/update-password`
 - **Method**: POST
 - **Request**: `{"username": "your_username", "password": "your_old_password", "new_password": "your_new_password"}`
 - **Response**: `{"message": "Password updated successfully"}`
 
-5. Recommend Movies
-### `/api/recommend-movies`
+### 5. Recommend Movies
+#### `/api/recommend-movies`
 - **Method**: GET
 - **Request Parameters**:
     - genre: e.g., "Action"
@@ -81,8 +82,8 @@ docker run -p 8080:5000 movie_app
   ]
 }`
 
-6. Movie Details
-### `/api/movie-details/<int:movie_id>`
+### 6. Movie Details
+#### `/api/movie-details/<int:movie_id>`
 - **Method**: GET
 - **Response**: `{
   "title": "Movie Title",
@@ -91,8 +92,8 @@ docker run -p 8080:5000 movie_app
   "vote_average": 8.2
 }`
 
-7. Search Movies
-### `/api/search-movies`
+### 7. Search Movies
+#### `/api/search-movies`
 - **Method**: GET
 - **Request Parameters**:
     - query: Movie title keyword
@@ -107,8 +108,8 @@ docker run -p 8080:5000 movie_app
   ]
 }`
 
-8. Top-Rated Movies
-### `/api/top-rated-movies`
+### 8. Top-Rated Movies
+#### `/api/top-rated-movies`
 - **Method**: GET
 - **Response**: `{
   "top_rated_movies": [
@@ -121,8 +122,8 @@ docker run -p 8080:5000 movie_app
   ]
 }`
 
-9. Now-Playing Movies
-### `/api/now-playing`
+### 9. Now-Playing Movies
+#### `/api/now-playing`
 - **Method**: GET
 - **Response**: `{
   "now_playing_movies": [
@@ -149,30 +150,44 @@ docker run -p 8080:5000 movie_app
 
 ## Project Structure
 .
+
 ├── app.py
+
 ├── models.py
+
 ├── tmdb_api.py
+
 ├── routes/
+
 │   ├──__ init__.py 
+
 │   └── account_routes.py
+
 ├── templates/
 │   ├── index.html
 │   └── user.html
+
 ├── static/
 │   ├── styles.css
 │   ├── scripts.js
 │   └── user.js
+
 ├── sql/
 │   ├── create_users_table.sql
 │   └── init_db.sh
+
 ├── Dockerfile
+
 ├── requirements.txt
+
 ├── .env
+
 └── tests/
     ├── __ init__.py
     ├── test_app.py
     ├── test_models.py
     └── test_tmdb_api.py
+    
 
 ## Testing
 
