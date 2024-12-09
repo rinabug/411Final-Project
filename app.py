@@ -142,6 +142,11 @@ def get_movie_recommendations_from_tmdb(genre, age_rating, year_range):
 
 app = Flask(__name__)
 
+@app.route("/health", methods=["GET"])
+def health_check():
+    return "OK", 200
+
+
 @app.route('/create_account', methods=['POST'])
 def create_account():
     data = request.get_json(force=True)
