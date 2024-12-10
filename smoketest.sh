@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
 
-python3 app.py > flask.log 2>&1 &
-
-APP_PID=$!
-echo "Flask app started with PID: $APP_PID"
-tail -f flask.log &  # Continuously monitor Flask logs
-
 # Fail on any command error
 set -e
 
@@ -28,7 +22,7 @@ trap cleanup EXIT
 echo "Starting the Flask app in background..."
 # Start the Flask app in the background
 # Adjust the command below to how you normally start your Flask app
-python3 app.py &
+python app.py &
 
 APP_PID=$!
 echo "Flask app started with PID: $APP_PID"
@@ -37,7 +31,7 @@ echo "Flask app started with PID: $APP_PID"
 echo "Waiting for the Flask app to respond..."
 ATTEMPTS=0
 MAX_ATTEMPTS=10
-until curl -sSf "$BASE_URL/health" > /dev/null || [ $ATTEMPTS -eq $MAX_ATTEMPTS ]; do
+until curl -sSf "$BASE_URL/create_account" > /dev/null || [ $ATTEMPTS -eq $MAX_ATTEMPTS ]; do
     ATTEMPTS=$((ATTEMPTS+1))
     echo "Attempt $ATTEMPTS/$MAX_ATTEMPTS: Waiting for app to start..."
     sleep 2
@@ -55,7 +49,7 @@ CREATE_ACCOUNT_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
   -d "{\"username\": \"${TEST_USERNAME}\", \"password\": \"${TEST_PASSWORD}\"}" \
   "$BASE_URL/create_account")
 
-echo "$CREATE_ACCOUNT_RESPONSE" 
+echo "$CREATE_ACCOUNT_RESPONSE" | jq .
 echo "$CREATE_ACCOUNT_RESPONSE" | grep -q "Account created successfully."
 
 echo "Logging in the newly created user..."
@@ -63,7 +57,7 @@ LOGIN_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
   -d "{\"username\": \"${TEST_USERNAME}\", \"password\": \"${TEST_PASSWORD}\"}" \
   "$BASE_URL/login")
 
-echo "$LOGIN_RESPONSE" 
+echo "$LOGIN_RESPONSE" | jq .
 echo "$LOGIN_RESPONSE" | grep -q "Login successful."
 
 echo "Requesting recommendations..."
@@ -71,7 +65,7 @@ RECOMMEND_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
   -d "{\"username\": \"${TEST_USERNAME}\", \"genre\": \"Action\", \"age_rating\": \"PG-13\", \"year_range\": \"2016-2020\"}" \
   "$BASE_URL/recommend")
 
-echo "$RECOMMEND_RESPONSE" 
+echo "$RECOMMEND_RESPONSE" | jq .
 echo "$RECOMMEND_RESPONSE" | grep -q "recommendations"
 
 echo "Logging in again to ensure previously recommended movies are shown..."
@@ -79,7 +73,7 @@ LOGIN_AGAIN_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
   -d "{\"username\": \"${TEST_USERNAME}\", \"password\": \"${TEST_PASSWORD}\"}" \
   "$BASE_URL/login")
 
-echo "$LOGIN_AGAIN_RESPONSE"
+echo "$LOGIN_AGAIN_RESPONSE" | jq .
 echo "$LOGIN_AGAIN_RESPONSE" | grep -q "previous_recommendations"
 
 echo "Smoke test passed successfully!"
