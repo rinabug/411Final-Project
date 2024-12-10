@@ -3,6 +3,13 @@
 ## Overview
 This application is a movie recommendation platform where users can create an account, log in, and receive personalized movie suggestions based on genre, age rating, and year range preferences. It integrates with The Movie Database (TMDB) API to fetch movies and provide additional details like trailers and watch providers.
 
+This Flask-based web application that uses the TMDB API and provides:
+
+Account Management (Create, Login, and Update Password).
+Movie Recommendations via The Movie Database (TMDB) API.
+Frontend Interface for easy interaction.
+Docker Support for containerized deployment.
+
 ---
 
 ## Routes
