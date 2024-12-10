@@ -1,9 +1,13 @@
 import os
-from flask import Flask
+import requests
+import hashlib
+import uuid
+import json
+import datetime
+from flask import Flask, request, jsonify
+from sqlalchemy import create_engine, Column, Integer, String, Text, ForeignKey, DateTime
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from dotenv import load_dotenv
-from routes.health_routes import health_bp
-from routes.auth_routes import auth_bp
-from routes.recommendation_routes import recommendation_bp
 
 load_dotenv()
 TMDB_API_KEY = os.getenv('TMDB_API_KEY')
@@ -138,6 +142,11 @@ def get_movie_recommendations_from_tmdb(genre, age_rating, year_range):
 
 app = Flask(__name__)
 
+@app.route("/health", methods=["GET"])
+def health_check():
+    return "OK", 200
+
+
 @app.route('/create_account', methods=['POST'])
 def create_account():
     data = request.get_json(force=True)
@@ -263,5 +272,4 @@ def recommend():
     return jsonify({"recommendations": recommendations}), 200
 
 if __name__ == '__main__':
-    app = create_app()
     app.run(host='127.0.0.1', port=5000, debug=True)
