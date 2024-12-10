@@ -1,8 +1,6 @@
-import os
 import requests
 import json
-
-TMDB_API_KEY = os.getenv('TMDB_API_KEY', '')
+from app.config import TMDB_API_KEY
 
 def get_watch_providers(movie_id):
     url = f"https://api.themoviedb.org/3/movie/{movie_id}/watch/providers"
@@ -74,7 +72,6 @@ def get_movie_recommendations_from_tmdb(genre, age_rating, year_range):
     if response.status_code != 200:
         return {"error": "Failed to fetch recommendations from TMDB."}, 500
 
-    from utils.tmdb_utils import get_watch_providers, get_movie_trailer
     recommendations = []
     if 'results' in data:
         for movie in data['results'][:10]:
