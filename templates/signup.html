@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Create Account</h2>
+<form id="create-account-form" method="POST" action="{{ url_for('create_account') }}">
+    <label for="create-username">Username:</label>
+    <input type="text" id="create-username" name="username" required>
+
+    <label for="create-password">Password:</label>
+    <input type="password" id="create-password" name="password" required>
+
+    <button type="submit">Create Account</button>
+</form>
+<div id="create-account-feedback"></div>
+{% endblock %}
